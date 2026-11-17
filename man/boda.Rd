@@ -70,7 +70,10 @@ boda(sts, control = list(
 	log-population. Time points with zero population are treated as missing
 	in the fit, and a zero population at the predicted time point gives a
 	threshold of 0. If \code{FALSE} (default), the original behaviour is
-	kept: the counts are scaled by their mean.}
+	kept: the counts are scaled by their mean. Internally the population is
+	rescaled so that its mean equals the mean count (the constant is absorbed
+	by the intercept); this keeps INLA numerically stable for large
+	populations.}
     }
   }
 }

@@ -1,3 +1,16 @@
+# surveillance 1.25.0.2 (fork surveillance-cruz, 2026-11-17)
+
+## Bug Fixes
+
+- `boda()` with `offset = TRUE` could give absurd results for large
+  populations (e.g. ~1e5 live births per period): INLA fits failed or
+  produced exploding posterior samples, giving predictions and thresholds
+  of 1e20 to 1e60, or thresholds near 0 (false alarms). The exposure is now
+  rescaled so that its mean equals the mean count; the constant is absorbed
+  by the intercept, so the model is unchanged. On a real quarterly series
+  (51 evaluated periods) the failures went from 8 to 0.
+
+
 # surveillance 1.25.0.1 (fork surveillance-cruz, 2026-11-17)
 
 ## New Features

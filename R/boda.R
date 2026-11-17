@@ -290,8 +290,22 @@ bodaFit <- function(dat, modelformula, alpha, mc.munu, mc.y,
     }
 
     # time points without population carry no information for the fit
-    dat$observed_values[exposure_value <= 0] <- NA
-    exposure_value[exposure_value <= 0] <- 1
+    no_population <- exposure_value <= 0
+    dat$observed_values[no_population] <- NA
+
+    # Rescale E so that its mean equals the mean count. With a large
+    # population (e.g. ~1e5 live births per period) the linear predictor sits
+    # far from 0 (around log(rate) ~ -8) and INLA becomes numerically
+    # unstable: some fits fail and the posterior samples explode (absurdly
+    # high or low thresholds). Multiplying E by a constant does not change
+    # the model -- the constant is absorbed by the intercept -- and keeps the
+    # linear predictor near 0, as with the original scaling by the mean count.
+    with_data <- !is.na(dat$observed_values) & !no_population
+    if (!any(with_data)) with_data <- !no_population
+    target <- mean(dat$observed_values[with_data], na.rm=TRUE)
+    if (!is.finite(target) || target <= 0) target <- 1
+    exposure_value <- exposure_value * target / mean(exposure_value[with_data])
+    exposure_value[no_population] <- target
   } else {
     # original behaviour: constant scaling by the mean of the counts
     exposure_value <- mean(dat$observed_values, na.rm=TRUE)
