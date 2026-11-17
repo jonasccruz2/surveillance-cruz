@@ -1,8 +1,8 @@
 Package: surveillance
 Title: Temporal and Spatio-Temporal Modeling and Monitoring of Epidemic
         Phenomena
-Version: 1.25.0
-Date: 2025-06-24
+Version: 1.25.0.1
+Date: 2026-11-17
 Authors@R: c(
     MH = person("Michael", "Hoehle",
                 role = c("aut", "ths"),

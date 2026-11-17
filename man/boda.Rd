@@ -23,10 +23,12 @@
 \usage{
 boda(sts, control = list(
     range=NULL, X=NULL, trend=FALSE, season=FALSE,
-    prior=c('iid','rw1','rw2'), alpha=0.05, mc.munu=100, 
+    prior=c('iid','rw1','rw2'), alpha=0.05,
+    alphaExclusion=1e-4, mc.munu=100,
     mc.y=10, verbose=FALSE,
     samplingMethod=c('joint','marginals'),
-    quantileMethod=c("MC","MM")
+    quantileMethod=c("MC","MM"),
+    offset=FALSE
 ))
 }
 
@@ -49,6 +51,10 @@ boda(sts, control = list(
       \item{\code{alpha}}{The threshold for declaring an observed count as
 	an aberration is the \eqn{(1-\alpha)\cdot 100\%}{(1-alpha)*100\%}
 	quantile of the predictive posterior.}
+      \item{\code{alphaExclusion}}{Level used to exclude past outbreaks from the
+	fit: before each evaluated time point, a preliminary fit is made and an
+	observed count above its \eqn{(1-alphaExclusion)\cdot 100\%}{(1-alphaExclusion)*100\%}
+	quantile is set to \code{NA} in the subsequent fits. Default \code{1e-4}.}
       \item{\code{mc.munu}}{}
       \item{\code{mc.y}}{Number of samples of \eqn{y}{y} to generate for
 	each par of the mean and size parameter. A total of \eqn{mc.munu
@@ -57,6 +63,14 @@ boda(sts, control = list(
 	it might be necessary to force verbose mode for INLA to work.}
       \item{\code{samplingMethod}}{Should one sample from the parameters joint distribution (joint) or from their respective marginal posterior distribution (marginals)?}
       \item{quantileMethod}{Character, either \code{MC} or \code{MM}. Indicates how to compute the quantile based on the posterior distribution (no matter the inference method): either by sampling \code{mc.munu} values from the posterior distribution of the parameters and then for each sampled parameters vector sampling \code{mc.y} response values so that one gets a vector of response values based on which one computes an empirical quantile (MC method, as explained in Manitz and \enc{Höhle}{Hoehle} 2013); or by sampling \code{mc.munu} from the posterior distribution of the parameters and then compute the quantile of the mixture distribution using bisectioning, which is faster.}
+      \item{\code{offset}}{Logical. If \code{TRUE}, the population of the
+	\code{sts} object (e.g. live births given via \code{sts(population = ...)})
+	is used as the exposure \code{E} in \code{INLA::inla}, so that the mean is
+	population times \eqn{\exp(\eta)}{exp(eta)}, as with an offset of the
+	log-population. Time points with zero population are treated as missing
+	in the fit, and a zero population at the predicted time point gives a
+	threshold of 0. If \code{FALSE} (default), the original behaviour is
+	kept: the counts are scaled by their mean.}
     }
   }
 }

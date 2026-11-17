@@ -3,7 +3,8 @@ boda <- function(sts, control=list(range=NULL, X=NULL, trend=FALSE, season=FALSE
                                    alphaExclusion=1e-4, mc.munu=100,
                                    mc.y=10, verbose=FALSE,
                                    samplingMethod=c('joint','marginals'),
-                                   quantileMethod=c("MC","MM"))) {
+                                   quantileMethod=c("MC","MM"),
+                                   offset=FALSE)) {
   
   if (!requireNamespace("INLA", quietly = TRUE)) {
     stop("The boda function requires the INLA package to be installed.")
@@ -22,7 +23,30 @@ boda <- function(sts, control=list(range=NULL, X=NULL, trend=FALSE, season=FALSE
   
   observed_values <- as.vector(observed(sts))
   time_index <- 1:length(observed_values)
-  
+
+  # offset = TRUE: the population of the sts object (e.g. live births) is
+  # used as the exposure E in INLA, i.e. mean = population * exp(eta).
+  # offset = FALSE (default): original behaviour, E = mean of the counts.
+  if (is.null(control[["offset", exact=TRUE]])) {
+    control$offset <- FALSE
+  }
+
+  if (!is.logical(control$offset) || length(control$offset) != 1 || is.na(control$offset)) {
+    stop("offset has to be TRUE or FALSE.")
+  }
+
+  population_values <- as.vector(sts@populationFrac)
+
+  if (control$offset) {
+    if (length(population_values) != length(observed_values) ||
+        any(is.na(population_values)) || any(population_values < 0)) {
+      stop("offset = TRUE needs a non-negative population for every time point of the sts object.")
+    }
+    if (length(unique(population_values)) == 1) {
+      warning("offset = TRUE but the population is constant; was 'population' given to sts()?")
+    }
+  }
+
   if (is.null(control[["range", exact=TRUE]])) {
     warning("No range given. Range is defined as time from second period until end of time series.")
     control$range <- (sts@freq + 1):length(observed_values)
@@ -101,7 +125,11 @@ boda <- function(sts, control=list(range=NULL, X=NULL, trend=FALSE, season=FALSE
     observed_values=observed_values,
     time_index=time_index
   )
-  
+
+  if (control$offset) {
+    data_frame$exposure <- population_values
+  }
+
   if (control$trend) {
     model_formula <- paste(
       model_formula,
@@ -248,8 +276,30 @@ bodaFit <- function(dat, modelformula, alpha, mc.munu, mc.y,
   
   environment(modelformula) <- environment()
   
-  exposure_value <- mean(dat$observed_values, na.rm=TRUE)
-  
+  if (!is.null(dat$exposure)) {
+    # offset: population of each time point as exposure E
+    exposure_value <- dat$exposure
+
+    # no population at the predicted time point: nothing expected
+    if (exposure_value[T1] <= 0) {
+      return(list(
+        upperbound=0,
+        lowerbound=0,
+        predicted=0
+      ))
+    }
+
+    # time points without population carry no information for the fit
+    dat$observed_values[exposure_value <= 0] <- NA
+    exposure_value[exposure_value <= 0] <- 1
+  } else {
+    # original behaviour: constant scaling by the mean of the counts
+    exposure_value <- mean(dat$observed_values, na.rm=TRUE)
+  }
+
+  # exposure of the predicted time point (used for the predictive draws)
+  exposure_T1 <- if (length(exposure_value) > 1) exposure_value[T1] else exposure_value
+
   model <- INLA::inla(
     modelformula,
     data=dat,
@@ -357,7 +407,7 @@ bodaFit <- function(dat, modelformula, alpha, mc.munu, mc.y,
       mapply(
         rnbinom,
         size=theta_values,
-        mu=exposure_value * mean_values,
+        mu=exposure_T1 * mean_values,
         MoreArgs=list(n=mc.y),
         SIMPLIFY=FALSE
       )
@@ -387,32 +437,32 @@ bodaFit <- function(dat, modelformula, alpha, mc.munu, mc.y,
     
     minimum_bracket <- qnbinom(
       p=(1 - alpha),
-      mu=exposure_value * min(mean_values),
+      mu=exposure_T1 * min(mean_values),
       size=max(theta_values)
     )
     
     maximum_bracket <- qnbinom(
       p=(1 - alpha),
-      mu=exposure_value * max(mean_values),
+      mu=exposure_T1 * max(mean_values),
       size=min(theta_values)
     )
     
     upperbound_value <- qmix(
       p=(1 - alpha),
-      mu=exposure_value * mean_tvalues,
+      mu=exposure_T1 * mean_values,
       size=theta_values,
       bracket=c(minimum_bracket, maximum_bracket)
     )
     
     lowerbound_value <- qmix(
       p=alpha,
-      mu=exposure_value * mean_values,
+      mu=exposure_T1 * mean_values,
       size=theta_values,
       bracket=c(0, maximum_bracket)
     )
     
     predicted_value <- mean(
-      exposure_value * mean_values,
+      exposure_T1 * mean_values,
       na.rm=TRUE
     )
   }

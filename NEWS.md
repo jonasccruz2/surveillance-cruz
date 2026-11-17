@@ -1,3 +1,24 @@
+# surveillance 1.25.0.1 (fork surveillance-cruz, 2026-11-17)
+
+## New Features
+
+- `boda()` gains `control$offset` (default `FALSE`). With `offset = TRUE`,
+  the population of the `sts` object (e.g. live births given via
+  `sts(population = ...)`) is used as the exposure `E` in `INLA::inla()`,
+  so the expected count is population times `exp(eta)`, as with an offset
+  of the log-population. Time points with zero population are treated as
+  missing in the fit; a zero population at the predicted time point gives
+  a threshold of 0. With `offset = FALSE` the previous behaviour (counts
+  scaled by their mean) is unchanged.
+
+## Bug Fixes
+
+- `boda()` with `quantileMethod = "MM"` failed with "object 'mean_tvalues'
+  not found"; the typo is fixed.
+
+- The documentation of `boda()` now describes `alphaExclusion`.
+
+
 # surveillance 1.25.0 (2025-06-24)
 
 ## New Features
